@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: todo
+  name: todo-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: todo
+  minReadySeconds: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: todo
+    spec:
+      containers:
+      - env:
+        - name: MONGO_HOST
+          value: mongo-service
+        - name: MONGO_PORT
+          value: "27017"
+        image: chidinmamba/todo-app-image:latest
+        name: todo-app-image
+        ports:
+        - containerPort: 5000
+        readinessProbe:
+          httpGet:
+            path: /readinesshealth
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /livenesshealth
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-app-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: todo
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+spec:
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - name: mongo
+        image: mongo:latest
+        ports:
+        - name: mongodbport
+          containerPort: 27017
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: mongo
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
